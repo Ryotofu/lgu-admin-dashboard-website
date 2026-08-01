@@ -24,6 +24,10 @@ const ensureImageSrc = (src) => {
 const AUTHORIZED_ADMINS = ['admin@lgu.gov.ph'];
 
 function App() {
+  // Navigation & Filtering States (DO NOT DELETE THIS)
+  const [activePage, setActivePage] = useState('dashboard');
+
+  // Real Firebase Auth States
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -49,7 +53,15 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // ... rest of your App code stays the same
+  // Real Firebase Logout Handler
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
 
 // Real Firebase Logout Handler
 const handleLogout = async () => {
