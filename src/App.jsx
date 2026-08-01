@@ -18,22 +18,38 @@ const ensureImageSrc = (src) => {
   }
   return `data:image/jpeg;base64,${src}`;
 };
+// -------------------------------------------------------------
+// AUTHORIZED ADMIN EMAILS LIST
+// -------------------------------------------------------------
+const AUTHORIZED_ADMINS = ['admin@lgu.gov.ph'];
 
 function App() {
-  // Navigation & Filtering States
-  const [activePage, setActivePage] = useState('dashboard');
-// Real Firebase Auth States
-const [user, setUser] = useState(null);
-const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-// Monitor real-time login session status
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-    setUser(currentUser);
-    setAuthLoading(false);
-  });
-  return () => unsubscribe();
-}, []);
+  // Monitor real-time login session status with Whitelist Check
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // 🛡️ CHECK IF LOGGED-IN EMAIL IS AUTHORIZED
+        if (AUTHORIZED_ADMINS.includes(currentUser.email)) {
+          setUser(currentUser);
+        } else {
+          // Reject and sign out any unauthorized accounts
+          alert(`Access Denied: ${currentUser.email} is not authorized for Admin access.`);
+          await signOut(auth);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // ... rest of your App code stays the same
 
 // Real Firebase Logout Handler
 const handleLogout = async () => {
