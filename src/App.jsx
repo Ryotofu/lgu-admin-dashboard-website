@@ -30,27 +30,34 @@ function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Monitor real-time login session status with Whitelist Check
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        // 🛡️ CHECK IF LOGGED-IN EMAIL IS AUTHORIZED
-        if (AUTHORIZED_ADMINS.includes(currentUser.email)) {
-          setUser(currentUser);
-        } else {
-          // Reject and sign out any unauthorized accounts
-          alert(`Access Denied: ${currentUser.email} is not authorized for Admin access.`);
-          await signOut(auth);
-          setUser(null);
-        }
+// Monitor real-time login session status with Whitelist Check
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    if (currentUser) {
+      // 🛡️ Standardize email string (lowercase + trim whitespace)
+      const userEmail = (currentUser.email || '').toLowerCase().trim();
+      
+      // Compare against authorized admin list
+      const isAuthorized = AUTHORIZED_ADMINS.some(
+        (admin) => admin.toLowerCase().trim() === userEmail
+      );
+
+      if (isAuthorized) {
+        setUser(currentUser);
       } else {
+        // Reject and sign out any unauthorized accounts
+        alert(`Access Denied: ${currentUser.email} is not authorized for Admin access.`);
+        await signOut(auth);
         setUser(null);
       }
-      setAuthLoading(false);
-    });
+    } else {
+      setUser(null);
+    }
+    setAuthLoading(false);
+  });
 
-    return () => unsubscribe();
-  }, []);
+  return () => unsubscribe();
+}, []);
 
   // Real Firebase Logout Handler
   const handleLogout = async () => {
@@ -61,7 +68,7 @@ function App() {
       console.error("Error signing out: ", error);
     }
   };
-  
+
   const [settingsTab, setSettingsTab] = useState('heatmap');
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false); // 👈 ADD THIS STATE
