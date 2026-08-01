@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase'; // Adjust path based on your file structure
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth, db } from './firebase';
+import Login from './Login';
 import emailjs from '@emailjs/browser';
 import IncidentHeatmap from './IncidentHeatmap';
 import ResponderManagement from './ResponderManagement'; // 👈 ADD THIS LINE
@@ -19,6 +22,27 @@ const ensureImageSrc = (src) => {
 function App() {
   // Navigation & Filtering States
   const [activePage, setActivePage] = useState('dashboard');
+// Real Firebase Auth States
+const [user, setUser] = useState(null);
+const [authLoading, setAuthLoading] = useState(true);
+
+// Monitor real-time login session status
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+    setAuthLoading(false);
+  });
+  return () => unsubscribe();
+}, []);
+
+// Real Firebase Logout Handler
+const handleLogout = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Error signing out:", error);
+  }
+};
   const [settingsTab, setSettingsTab] = useState('heatmap');
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false); // 👈 ADD THIS STATE
@@ -313,7 +337,19 @@ function App() {
   };
  
   const stats = getStats();
+// 1. Show loading indicator while Firebase checks active login session
+if (authLoading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold text-sm uppercase tracking-widest">
+      Authenticating Admin Access...
+    </div>
+  );
+}
 
+// 2. AUTH GUARD: Render Login screen if user is not logged in
+if (!user) {
+  return <Login />;
+}
   return (
     <>
       <div className="min-h-screen text-gray-800 pb-12 print:hidden bg-gray-50">
@@ -329,7 +365,7 @@ function App() {
           </div>
          <div className="flex items-center gap-4">
   <span className="bg-slate-800 hover:bg-slate-700 transition-colors text-slate-300 px-3 py-1.5 rounded-full text-xs font-black tracking-widest cursor-default">
-    🔴 ADMIN LEVEL ACCESS
+    🔴 🔴 ADMIN: {user?.email}
   </span>
 
   {/* 🎯 START TUTORIAL BUTTON */}
@@ -346,6 +382,13 @@ function App() {
   className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded transition-all shadow-md uppercase flex items-center gap-1.5"
 >
   <span>📖</span> User Manual
+</button>
+{/* 🚪 SIGN OUT BUTTON */}
+<button 
+  onClick={handleLogout}
+  className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded transition-all shadow-md uppercase flex items-center gap-1.5"
+>
+  <span>🚪</span> Sign Out
 </button>
 </div>
         </header>

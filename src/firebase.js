@@ -1,6 +1,6 @@
-// 1. You MUST have these two imports at the top:
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; 
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 // 2. Your keys stay exactly the same:
 const firebaseConfig = {
@@ -12,6 +12,9 @@ const firebaseConfig = {
   appId: "1:1012159203170:web:6c866f429dbc1b25724e3b"
 };
 
-// 3. You MUST have these two lines at the very bottom:
 const app = initializeApp(firebaseConfig);
+
+// Export Auth and Firestore services
+export const auth = getAuth(app);
 export const db = getFirestore(app);
+export default app;
