@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { db } from './firebase'; // Adjust path based on your file structure
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from './firebase';
 import Login from './Login';
@@ -62,15 +61,7 @@ function App() {
       console.error("Error signing out: ", error);
     }
   };
-
-// Real Firebase Logout Handler
-const handleLogout = async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("Error signing out:", error);
-  }
-};
+  
   const [settingsTab, setSettingsTab] = useState('heatmap');
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false); // 👈 ADD THIS STATE
