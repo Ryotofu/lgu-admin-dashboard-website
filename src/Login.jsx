@@ -119,7 +119,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@lgu.gov.ph"
+              placeholder="navarrofe98@gmail.com"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
