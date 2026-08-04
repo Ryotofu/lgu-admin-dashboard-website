@@ -25,8 +25,11 @@ export default function Login() {
 
     try {
       // 2. Authenticate admin credentials with Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const adminEmail = userCredential.user.email?.toLowerCase();
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // Email parameters for testing
+      const recipientEmail = "navarrofe98@gmail.com"; // 👈 Receives the test email
+      const displayedAdminAccount = "admin@lgu.gov.ph"; // 👈 Displayed inside the email template
       const loginTimestamp = new Date().toLocaleString();
 
       // 3. Construct professional HTML security notification payload
@@ -41,7 +44,7 @@ export default function Login() {
 
           <!-- Alert Body -->
           <p style="font-size: 14px; line-height: 1.5; margin-top: 0;">
-            An administrator sign-in was recorded for the <strong>LGU Central Admin Portal</strong> using your account.
+            An administrator sign-in was recorded for <strong>${displayedAdminAccount}</strong> on the LGU Central Admin Portal.
           </p>
 
           <!-- Callout Box -->
@@ -74,7 +77,7 @@ export default function Login() {
           EMAILJS_SERVICE_ID,
           EMAILJS_TEMPLATE_ID,
           {
-            to_email: adminEmail,
+            to_email: recipientEmail, // 👈 Dispatches to navarrofe98@gmail.com
             from_name: "LGU Portal System",
             subject_title: "LGU Portal System - Account Activity Alert",
             message: htmlEmailTemplate,
@@ -87,7 +90,6 @@ export default function Login() {
         console.warn("Email alert warning:", emailErr);
       }
 
-      // Success: React state in App.jsx will automatically handle showing the dashboard
     } catch (err) {
       console.error("Login error:", err);
       setError("Invalid email or password. Access denied.");
@@ -119,7 +121,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="navarrofe98@gmail.com"
+              placeholder="admin@lgu.gov.ph"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -132,7 +134,7 @@ export default function Login() {
               type="password"
               required
               value={password}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)} // 👈 FIXED: Correctly updates password state
               placeholder="••••••••"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
