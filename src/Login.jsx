@@ -4,9 +4,9 @@ import emailjs from "@emailjs/browser";
 import { auth } from "./firebase";
 
 // EmailJS Credentials Configuration
-const EMAILJS_SERVICE_ID = 'service_id265eu';
-const EMAILJS_TEMPLATE_ID = 'template_jj65n7c';
-const EMAILJS_PUBLIC_KEY = 'G7C0i2J4eS7lsxFN_';
+const EMAILJS_SERVICE_ID = "service_id265eu";
+const EMAILJS_TEMPLATE_ID = "template_jj65n7c";
+const EMAILJS_PUBLIC_KEY = "G7C0i2J4eS7lsxFN_";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,21 +17,21 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // 1. Guard Clause: Prevents duplicate dispatches on fast clicks
+    // 1. Guard Clause: Prevent duplicate submissions on fast clicks
     if (loading) return;
 
     setError("");
     setLoading(true);
 
     try {
-      // 2. Authenticate admin credentials with Firebase Auth
+      // 2. Authenticate admin credentials via Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Captures the exact email used to log in
+      // Extract the logged-in email address
       const loggedInEmail = userCredential.user.email?.toLowerCase() || email.toLowerCase();
       const loginTimestamp = new Date().toLocaleString();
 
-      // 3. Construct professional HTML security notification payload
+      // 3. Construct professional HTML email notification payload
       const htmlEmailTemplate = `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; color: #334155;">
           
@@ -70,7 +70,7 @@ export default function Login() {
         </div>
       `;
 
-      // 4. Dispatch security alert via EmailJS directly to the logged-in user
+      // 4. Dispatch security alert email via EmailJS
       try {
         await emailjs.send(
           EMAILJS_SERVICE_ID,
@@ -84,16 +84,24 @@ export default function Login() {
           },
           EMAILJS_PUBLIC_KEY
         );
-        console.log("LGU Admin login alert email sent successfully!");
+        console.log("LGU Admin login alert email dispatched successfully!");
       } catch (emailErr) {
         console.warn("Email alert warning:", emailErr);
       }
 
-      // Success: App.jsx automatically listens to auth changes and displays the dashboard!
+      // Success: Firebase Auth state listener in App.jsx detects authentication and renders the dashboard!
 
     } catch (err) {
       console.error("Login error:", err);
-      setError("Invalid email or password. Access denied.");
+      if (
+        err.code === "auth/invalid-credential" || 
+        err.code === "auth/wrong-password" || 
+        err.code === "auth/user-not-found"
+      ) {
+        setError("Invalid email or password.");
+      } else {
+        setError("Failed to log in. Please check your network connection.");
+      }
     } finally {
       setLoading(false);
     }
@@ -107,7 +115,7 @@ export default function Login() {
         </h2>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-md">
+          <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-md font-bold text-center">
             {error}
           </div>
         )}
