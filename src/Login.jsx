@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import emailjs from "@emailjs/browser";
 import { auth } from "./firebase";
@@ -9,6 +10,8 @@ const EMAILJS_TEMPLATE_ID = 'template_jj65n7c';
 const EMAILJS_PUBLIC_KEY = 'G7C0i2J4eS7lsxFN_';
 
 export default function Login() {
+  const navigate = useNavigate(); // 👈 Enables automatic navigation after login
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -24,10 +27,9 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 2. Authenticate admin credentials with Firebase
+      // 2. Authenticate admin credentials with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Dynamically retrieve the logged-in email address (e.g. navarrofe98@gmail.com)
       const loggedInEmail = userCredential.user.email?.toLowerCase() || email.toLowerCase();
       const loginTimestamp = new Date().toLocaleString();
 
@@ -70,13 +72,13 @@ export default function Login() {
         </div>
       `;
 
-      // 4. Send email dispatch via EmailJS dynamically to the logged-in user
+      // 4. Dispatch security alert via EmailJS
       try {
         await emailjs.send(
           EMAILJS_SERVICE_ID,
           EMAILJS_TEMPLATE_ID,
           {
-            to_email: loggedInEmail, // 👈 Dynamically sends to whatever account logged in
+            to_email: loggedInEmail,
             from_name: "LGU Portal System",
             subject_title: "LGU Portal System - Account Activity Alert",
             message: htmlEmailTemplate,
@@ -88,6 +90,9 @@ export default function Login() {
       } catch (emailErr) {
         console.warn("Email alert warning:", emailErr);
       }
+
+      // 5. Explicitly navigate to the Admin Dashboard route
+      navigate("/dashboard"); // 👈 Adjust "/dashboard" to match your main route in App.jsx
 
     } catch (err) {
       console.error("Login error:", err);
@@ -120,7 +125,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@lgu.gov.ph" // 👈 Matches UI screenshot placeholder
+              placeholder="admin@lgu.gov.ph"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -133,7 +138,7 @@ export default function Login() {
               type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)} // 👈 Correct state update for password
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
