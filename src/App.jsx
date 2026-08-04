@@ -20,7 +20,7 @@ const ensureImageSrc = (src) => {
 // -------------------------------------------------------------
 // AUTHORIZED ADMIN EMAILS LIST
 // -------------------------------------------------------------
-const AUTHORIZED_ADMINS = ['admin@lgu.gov.ph'];
+const AUTHORIZED_ADMINS = ['navarrofe98@gmail.com'];
 
 function App() {
   // Navigation & Filtering States (DO NOT DELETE THIS)
