@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import emailjs from "@emailjs/browser";
 import { auth } from "./firebase";
@@ -10,8 +9,6 @@ const EMAILJS_TEMPLATE_ID = 'template_jj65n7c';
 const EMAILJS_PUBLIC_KEY = 'G7C0i2J4eS7lsxFN_';
 
 export default function Login() {
-  const navigate = useNavigate(); // 👈 Enables automatic navigation after login
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,7 +17,7 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // 1. Guard Clause: Prevent rapid double-click dispatches
+    // 1. Guard Clause: Prevents duplicate dispatches on fast clicks
     if (loading) return;
 
     setError("");
@@ -30,6 +27,7 @@ export default function Login() {
       // 2. Authenticate admin credentials with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
+      // Captures the exact email used to log in
       const loggedInEmail = userCredential.user.email?.toLowerCase() || email.toLowerCase();
       const loginTimestamp = new Date().toLocaleString();
 
@@ -72,7 +70,7 @@ export default function Login() {
         </div>
       `;
 
-      // 4. Dispatch security alert via EmailJS
+      // 4. Dispatch security alert via EmailJS directly to the logged-in user
       try {
         await emailjs.send(
           EMAILJS_SERVICE_ID,
@@ -91,8 +89,7 @@ export default function Login() {
         console.warn("Email alert warning:", emailErr);
       }
 
-      // 5. Explicitly navigate to the Admin Dashboard route
-      navigate("/dashboard"); // 👈 Adjust "/dashboard" to match your main route in App.jsx
+      // Success: App.jsx automatically listens to auth changes and displays the dashboard!
 
     } catch (err) {
       console.error("Login error:", err);
