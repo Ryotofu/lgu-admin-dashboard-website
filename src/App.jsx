@@ -626,53 +626,67 @@ if (!user) {
                           </a>
                         </p>
                         
-                       {/* 2. OMNICHANNEL USER CROSS-COLLECTION LINKER */}
+{/* 2. OMNICHANNEL USER CROSS-COLLECTION LINKER */}
 <div className="sm:col-span-2 mt-1">
   {(() => {
-    // 1. Locate matching user profile in 'users' array by checking all possible UID and email fields
+    // 1. Extract email from Firestore report (specifically checking 'actualReporterEmail')
+    const reportEmail = 
+      selectedIncident.actualReporterEmail || 
+      selectedIncident.reporterEmail || 
+      selectedIncident.userEmail || 
+      selectedIncident.email || 
+      selectedIncident.reporter_email;
+
+    // 2. Locate matching user profile in 'users' array by UID or actualReporterEmail
     const reporterProfile = users.find(u => {
-      const reportUid = selectedIncident.userId || selectedIncident.uid || selectedIncident.user_id || 
-                        selectedIncident.reporterId || selectedIncident.reporterID || selectedIncident.reporterUid || 
-                        selectedIncident.createdBy || selectedIncident.authorId || selectedIncident.submittedBy;
-      const userUid = u.id || u.uid || u.userId || u.docId;
+      // Check UID match
+      const reportUid = 
+        selectedIncident.userId || selectedIncident.uid || selectedIncident.user_id || 
+        selectedIncident.reporterId || selectedIncident.reporterID || selectedIncident.reporterUid || 
+        selectedIncident.createdBy || selectedIncident.authorId;
+      const userUid = u.id || u.uid || u.userId;
 
       if (reportUid && userUid && String(reportUid).trim().toLowerCase() === String(userUid).trim().toLowerCase()) {
         return true;
       }
 
-      const reportEmail = selectedIncident.reporterEmail || selectedIncident.email || selectedIncident.userEmail || selectedIncident.reporter_email;
-      const isPlaceholderEmail = reportEmail && (reportEmail.toLowerCase().includes('anonymous') || reportEmail.toLowerCase().includes('lgu.gov'));
-
-      // Only match by email if it's not a dummy placeholder
-      if (reportEmail && !isPlaceholderEmail && u.email && reportEmail.toLowerCase().trim() === u.email.toLowerCase().trim()) {
+      // Check Email match
+      if (reportEmail && u.email && reportEmail.trim().toLowerCase() === u.email.trim().toLowerCase()) {
         return true;
       }
 
       return false;
     });
 
-    // 2. Extract valid username, ignoring generic placeholder strings
-    const incUsername = selectedIncident.username && selectedIncident.username !== 'Anonymous' ? selectedIncident.username : null;
-    const incReporterName = selectedIncident.reporterName && selectedIncident.reporterName !== 'Anonymous Citizen' && selectedIncident.reporterName !== 'Anonymous' ? selectedIncident.reporterName : null;
+    // 3. Resolve Display Name (User Profile Name > Incident Reporter Name > Email > Fallback)
+    const username = 
+      reporterProfile?.fullName || 
+      reporterProfile?.username || 
+      reporterProfile?.displayName || 
+      reporterProfile?.name || 
+      (selectedIncident.reporterName && selectedIncident.reporterName !== 'Anonymous Citizen' ? selectedIncident.reporterName : null) || 
+      selectedIncident.username || 
+      reportEmail || 
+      'Anonymous Citizen';
 
-    const username = reporterProfile?.username || 
-                     reporterProfile?.fullName || 
-                     reporterProfile?.displayName || 
-                     reporterProfile?.name || 
-                     incUsername || 
-                     incReporterName || 
-                     'Anonymous Citizen';
+    // 4. Resolve Email (Profile Email > Report Actual Email > Fallback Email)
+    const realEmail = 
+      reporterProfile?.email || 
+      reportEmail || 
+      'anonymous-source@lgu.gov';
 
-    // 3. Extract valid email, ignoring generic placeholder strings
-    const rawReportEmail = selectedIncident.userEmail || selectedIncident.reporterEmail || selectedIncident.email || '';
-    const isRawPlaceholder = rawReportEmail.toLowerCase().includes('anonymous') || rawReportEmail.toLowerCase().includes('lgu.gov');
-    const validReportEmail = !isRawPlaceholder && rawReportEmail ? rawReportEmail : null;
+    // 5. Resolve Verification ID Image (Incident idImageBase64 > Profile ID Image)
+    const idImage = 
+      selectedIncident.idImageBase64 || 
+      selectedIncident.reporterIdImage || 
+      reporterProfile?.idImageBase64 || 
+      reporterProfile?.idCard;
 
-    const realEmail = reporterProfile?.email || validReportEmail || 'anonymous-source@lgu.gov';
-
-    // 4. Extract ID Card image and status from user profile or incident payload
-    const idImage = reporterProfile?.idImageBase64 || reporterProfile?.idCard || selectedIncident.reporterIdImage || selectedIncident.idImageBase64;
-    const idStatus = reporterProfile?.idStatus || selectedIncident.idStatus || 'VALID ID';
+    // 6. Resolve ID Status
+    const idStatus = 
+      selectedIncident.idStatus || 
+      reporterProfile?.idStatus || 
+      'VALID ID';
 
     return (
       <div className="bg-slate-100 border border-slate-300 p-3 rounded-xl flex items-center justify-between gap-4 shadow-sm">
@@ -702,7 +716,8 @@ if (!user) {
       </div>
     );
   })()}
-</div>                      </div>
+</div> 
+               </div>
 
                       <div className={`p-3 border rounded-xl flex flex-col gap-1 shadow-inner ${
                         selectedIncident.aiAnalysis?.invalidAngles?.length > 0 ? 'bg-amber-50/50 border-amber-200' : 'bg-emerald-50/50 border-emerald-200'
