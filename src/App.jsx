@@ -640,7 +640,9 @@ if (!user) {
                               return false;
                             });
 
-                            const realEmail = selectedIncident.reporterEmail || selectedIncident.email || selectedIncident.userEmail || reporterProfile?.email || 'anonymous-source@lgu.gov';
+                            // Check registered profile fields first so user accounts override anonymous report fallbacks
+const username = reporterProfile?.username || reporterProfile?.fullName || reporterProfile?.displayName || selectedIncident.username || selectedIncident.reporterName || 'Anonymous Citizen';
+const realEmail = reporterProfile?.email || selectedIncident.userEmail || selectedIncident.reporterEmail || selectedIncident.email || 'anonymous-source@lgu.gov';
                             const idImage = selectedIncident.reporterIdImage || selectedIncident.idImageBase64 || reporterProfile?.idImageBase64 || reporterProfile?.idCard;
                             const idStatus = selectedIncident.idStatus || reporterProfile?.idStatus || 'VALID ID';
 
@@ -648,7 +650,7 @@ if (!user) {
                               <div className="bg-slate-100 border border-slate-300 p-3 rounded-xl flex items-center justify-between gap-4 shadow-sm">
                                 <div className="space-y-1">
                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">REPORTED BY & VERIFICATION ID</span>
-                                  <p className="font-extrabold text-slate-800 text-sm">👤 {selectedIncident.reporterName || reporterProfile?.fullName || 'Anonymous Citizen'}</p>
+                                  <p className="font-extrabold text-slate-800 text-sm">👤 {username}</p>
                                   <p className="text-xs text-red-600 font-black">
                                     Real Email: <span className="underline select-all">{realEmail}</span>
                                   </p>
