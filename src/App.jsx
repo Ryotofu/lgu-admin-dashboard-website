@@ -8,6 +8,7 @@ import IncidentHeatmap from './IncidentHeatmap';
 import ResponderManagement from './ResponderManagement'; // 👈 ADD THIS LINE
 import InstructionsManual from './InstructionsManual';
 import InteractiveTutorial from './InteractiveTutorial'; // 👈 ADD THIS IMPORT
+import EulaModal from './EulaModal'; // 👈 ADD THIS IMPORT
 
 // Defensive image URL utility to handle mixed raw Base64 strings, complete data URIs, and HTTP links safely
 const ensureImageSrc = (src) => {
@@ -72,6 +73,29 @@ useEffect(() => {
   const [settingsTab, setSettingsTab] = useState('heatmap');
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false); // 👈 ADD THIS STATE
+  // State for controlling EULA agreement status
+const [isEulaAccepted, setIsEulaAccepted] = useState(false);
+
+// Check if user has accepted the EULA on login
+useEffect(() => {
+  if (user) {
+    const accepted = localStorage.getItem(`lgu_eula_accepted_${user.uid}`);
+    setIsEulaAccepted(accepted === 'true');
+  }
+}, [user]);
+
+// Handlers for accepting or declining EULA
+const handleAcceptEula = () => {
+  if (user) {
+    localStorage.setItem(`lgu_eula_accepted_${user.uid}`, 'true');
+  }
+  setIsEulaAccepted(true);
+};
+
+const handleDeclineEula = () => {
+  alert("You must accept the EULA to access the LGU Admin Portal.");
+  handleLogout();
+};
   const [historyFilter, setHistoryFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -1610,6 +1634,13 @@ if (!user) {
         setSettingsTab={setSettingsTab}
         reports={reports}
       />
+
+      {/* EULA MODAL OVERLAY */}
+   <EulaModal
+     isOpen={!!user && !isEulaAccepted}
+     onAccept={handleAcceptEula}
+     onDecline={handleDeclineEula}
+   />
 
     </>
   );
