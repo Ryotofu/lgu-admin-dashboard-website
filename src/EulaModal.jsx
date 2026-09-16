@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 
 /**
- * EulaModal Component
- * Prompts authorized admins to accept system terms and Data Privacy terms.
+ * EulaModal Component - LGU Operations Control Center Edition
+ * 
+ * Prompts authorized LGU admins and emergency dispatchers to acknowledge
+ * operational rules, action logging, and Data Privacy Act (R.A. 10173) terms.
+ * 
+ * @param {boolean} isOpen - Controls visibility of the modal dialog.
+ * @param {function} onAccept - Callback triggered upon user acceptance.
+ * @param {function} onDecline - Callback triggered upon user decline (logs out session).
  */
 const EulaModal = ({ isOpen, onAccept, onDecline }) => {
   const [isChecked, setIsChecked] = useState(false);
@@ -78,7 +84,7 @@ const EulaModal = ({ isOpen, onAccept, onDecline }) => {
         <div className="p-4 bg-slate-100 border-t flex justify-end gap-3">
           <button
             onClick={onDecline}
-            className="px-5 py-2.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 uppercase tracking-wider transition-all"
+            className="px-5 py-2.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 uppercase tracking-wider transition-all cursor-pointer"
           >
             Decline & Sign Out
           </button>
