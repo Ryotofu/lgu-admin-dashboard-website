@@ -699,14 +699,23 @@ if (!user) {
       reportEmail || 
       'anonymous-source@lgu.gov';
 
-    // 5. Resolve Verification ID Image (Incident idImageBase64 > Profile ID Image)
+    // 📱 5. Resolve Contact Phone Number
+    const realPhone = 
+      selectedIncident.reporterPhone || 
+      selectedIncident.phoneNumber || 
+      selectedIncident.phone || 
+      reporterProfile?.phoneNumber || 
+      reporterProfile?.phone || 
+      'No Phone Provided';
+
+    // 6. Resolve Verification ID Image (Incident idImageBase64 > Profile ID Image)
     const idImage = 
       selectedIncident.idImageBase64 || 
       selectedIncident.reporterIdImage || 
       reporterProfile?.idImageBase64 || 
       reporterProfile?.idCard;
 
-    // 6. Resolve ID Status
+    // 7. Resolve ID Status
     const idStatus = 
       selectedIncident.idStatus || 
       reporterProfile?.idStatus || 
@@ -719,6 +728,9 @@ if (!user) {
           <p className="font-extrabold text-slate-800 text-sm">👤 {username}</p>
           <p className="text-xs text-red-600 font-black">
             Real Email: <span className="underline select-all">{realEmail}</span>
+          </p>
+          <p className="text-xs text-blue-900 font-black">
+            📞 Phone: <span className="select-all">{realPhone}</span>
           </p>
         </div>
         
@@ -740,7 +752,7 @@ if (!user) {
       </div>
     );
   })()}
-</div> 
+</div>
                </div>
 
                       <div className={`p-3 border rounded-xl flex flex-col gap-1 shadow-inner ${
