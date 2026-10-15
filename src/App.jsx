@@ -427,18 +427,23 @@ const resolved = filteredForStats.filter(r => {
       else medium++;
     });
 
-    return { 
-      totalAll, fire, police, health, firePct, policePct, healthPct,
-      total, resolved, active,
-      resolvedPct: total === 0 ? 0 : Math.round((resolved / total) * 100),
-      activePct: total === 0 ? 0 : Math.round((active / total) * 100),
-      high, medium, low,
-      highPct: total === 0 ? 0 : Math.round((high / total) * 100),
-      mediumPct: total === 0 ? 0 : Math.round((medium / total) * 100),
-      lowPct: total === 0 ? 0 : Math.round((low / total) * 100),
-      reportList: filteredForStats
-    };
-  };
+return { 
+          totalAll, fire, police, health, firePct, policePct, healthPct,
+          total, resolved, active,
+          resolvedPct: total === 0 ? 0 : Math.round((resolved / total) * 100),
+          activePct: total === 0 ? 0 : Math.round((active / total) * 100),
+          high, medium, low,
+          highPct: total === 0 ? 0 : Math.round((high / total) * 100),
+          mediumPct: total === 0 ? 0 : Math.round((medium / total) * 100),
+          lowPct: total === 0 ? 0 : Math.round((low / total) * 100),
+          reportList: filteredForStats
+        };
+      };
+
+  // ✅ Compute operational stats before component renders UI
+  const stats = getStats();
+
+// 1. Show loading indicator while Firebase checks active login session
  
 
 // 1. Show loading indicator while Firebase checks active login session
