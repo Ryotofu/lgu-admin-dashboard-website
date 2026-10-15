@@ -18,6 +18,60 @@ const ensureImageSrc = (src) => {
   }
   return `data:image/jpeg;base64,${src}`;
 };
+
+// 🔄 Dynamic Status Synchronizer & Fallback Resolver (Top-level declaration prevents TDZ errors)
+const getEffectiveStatuses = (report) => {
+  if (!report) return { overallStatus: 'PENDING', police: 'PENDING', medical: 'PENDING', fire: 'PENDING' };
+
+  const topStatus = (report.status || 'PENDING').toUpperCase();
+
+  // 1. Read explicit department fields
+  let pStatus = report.policeStatus ? report.policeStatus.toUpperCase() : null;
+  let mStatus = (report.medicalStatus || report.healthStatus) ? (report.medicalStatus || report.healthStatus).toUpperCase() : null;
+  let fStatus = report.fireStatus ? report.fireStatus.toUpperCase() : null;
+
+  // 2. Identify required/involved departments
+  const cat = `${report.reportCategory || ''} ${report.requestedRole || ''} ${report.incidentTitle || ''} ${report.description || ''}`.toLowerCase();
+  const hasFire = cat.includes('fire');
+  const hasPolice = cat.includes('police') || cat.includes('security') || cat.includes('crime') || cat.includes('theft') || cat.includes('robbery') || cat.includes('fight') || cat.includes('accident') || cat.includes('traffic') || cat.includes('suspicious');
+  const hasMedical = cat.includes('medical') || cat.includes('health') || cat.includes('ambulance');
+
+  // 3. Handle legacy documents missing sub-fields
+  if (!pStatus && !mStatus && !fStatus) {
+    pStatus = (hasPolice || (!hasFire && !hasMedical)) ? topStatus : 'N/A';
+    mStatus = hasMedical ? topStatus : 'N/A';
+    fStatus = hasFire ? topStatus : 'N/A';
+  } else {
+    // Fill remaining unset slots
+    if (!pStatus) pStatus = hasPolice ? 'PENDING' : 'N/A';
+    if (!mStatus) mStatus = hasMedical ? 'PENDING' : 'N/A';
+    if (!fStatus) fStatus = hasFire ? 'PENDING' : 'N/A';
+  }
+
+  const isFinished = (s) => ['CASE CLOSED', 'RESOLVED', 'SOLVED', 'N/A'].includes(s);
+
+  // 4. Derive unified overall status
+  const activeStatuses = [];
+  if (hasPolice || (!hasFire && !hasMedical)) activeStatuses.push(pStatus);
+  if (hasMedical) activeStatuses.push(mStatus);
+  if (hasFire) activeStatuses.push(fStatus);
+
+  let derivedOverall = topStatus;
+  if (activeStatuses.length > 0 && activeStatuses.every(isFinished)) {
+    derivedOverall = 'CASE CLOSED';
+  } else if (activeStatuses.some(s => s === 'DISPATCHED')) {
+    derivedOverall = 'DISPATCHED';
+  } else if (activeStatuses.every(s => s === 'PENDING')) {
+    derivedOverall = 'PENDING';
+  }
+
+  return {
+    overallStatus: derivedOverall,
+    police: pStatus,
+    medical: mStatus,
+    fire: fStatus
+  };
+};
 // -------------------------------------------------------------
 // AUTHORIZED ADMIN EMAILS LIST
 // -------------------------------------------------------------
@@ -386,60 +440,7 @@ const resolved = filteredForStats.filter(r => {
     };
   };
  
-  const stats = getStats();
-  // 🔄 Dynamic Status Synchronizer & Fallback Resolver
-  const getEffectiveStatuses = (report) => {
-    if (!report) return { overallStatus: 'PENDING', police: 'PENDING', medical: 'PENDING', fire: 'PENDING' };
 
-    const topStatus = (report.status || 'PENDING').toUpperCase();
-
-    // 1. Read explicit department fields
-    let pStatus = report.policeStatus ? report.policeStatus.toUpperCase() : null;
-    let mStatus = (report.medicalStatus || report.healthStatus) ? (report.medicalStatus || report.healthStatus).toUpperCase() : null;
-    let fStatus = report.fireStatus ? report.fireStatus.toUpperCase() : null;
-
-    // 2. Identify required/involved departments
-    const cat = `${report.reportCategory || ''} ${report.requestedRole || ''} ${report.incidentTitle || ''} ${report.description || ''}`.toLowerCase();
-    const hasFire = cat.includes('fire');
-    const hasPolice = cat.includes('police') || cat.includes('security') || cat.includes('crime') || cat.includes('theft') || cat.includes('robbery') || cat.includes('fight') || cat.includes('accident') || cat.includes('traffic') || cat.includes('suspicious');
-    const hasMedical = cat.includes('medical') || cat.includes('health') || cat.includes('ambulance');
-
-    // 3. Handle legacy documents missing sub-fields
-    if (!pStatus && !mStatus && !fStatus) {
-      pStatus = (hasPolice || (!hasFire && !hasMedical)) ? topStatus : 'N/A';
-      mStatus = hasMedical ? topStatus : 'N/A';
-      fStatus = hasFire ? topStatus : 'N/A';
-    } else {
-      // Fill remaining unset slots
-      if (!pStatus) pStatus = hasPolice ? 'PENDING' : 'N/A';
-      if (!mStatus) mStatus = hasMedical ? 'PENDING' : 'N/A';
-      if (!fStatus) fStatus = hasFire ? 'PENDING' : 'N/A';
-    }
-
-    const isFinished = (s) => ['CASE CLOSED', 'RESOLVED', 'SOLVED', 'N/A'].includes(s);
-
-    // 4. Derive unified overall status
-    const activeStatuses = [];
-    if (hasPolice || (!hasFire && !hasMedical)) activeStatuses.push(pStatus);
-    if (hasMedical) activeStatuses.push(mStatus);
-    if (hasFire) activeStatuses.push(fStatus);
-
-    let derivedOverall = topStatus;
-    if (activeStatuses.length > 0 && activeStatuses.every(isFinished)) {
-      derivedOverall = 'CASE CLOSED';
-    } else if (activeStatuses.some(s => s === 'DISPATCHED')) {
-      derivedOverall = 'DISPATCHED';
-    } else if (activeStatuses.every(s => s === 'PENDING')) {
-      derivedOverall = 'PENDING';
-    }
-
-    return {
-      overallStatus: derivedOverall,
-      police: pStatus,
-      medical: mStatus,
-      fire: fStatus
-    };
-  };
 // 1. Show loading indicator while Firebase checks active login session
 if (authLoading) {
   return (
