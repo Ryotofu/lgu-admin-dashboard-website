@@ -1474,7 +1474,7 @@ if (!user) {
               <th className="p-3">Category</th>
               <th className="p-3">Priority Level</th>
               <th className="p-3">Status Label</th>
-              <th className="p-3">Verified Dispatcher</th>
+              <th className="p-3">Verified Responder</th>
             </tr>
           </thead>
           <tbody className="divide-y text-slate-700 font-medium">
@@ -1758,7 +1758,7 @@ if (!user) {
                 <th className="p-1.5 border-r border-slate-300">Department</th>
                 <th className="p-1.5 border-r border-slate-300">Severity Priority</th>
                 <th className="p-1.5 border-r border-slate-300">Verified Status</th>
-                <th className="p-1.5">Authorized Dispatch Team</th>
+                <th className="p-1.5">Authorized Responder Email</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
