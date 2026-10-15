@@ -188,9 +188,39 @@ export default function IncidentHeatmap({ reports = [], getDepartment, formatDat
       const coords = parseCoordinates(report);
       if (!coords) return;
 
-      const sevStyle = getSeverityStyle(report.severity);
+     const sevStyle = getSeverityStyle(report.severity);
       const dept = typeof getDepartment === 'function' ? getDepartment(report) : 'GENERAL';
       const formattedDate = typeof formatDateTime === 'function' ? formatDateTime(report.createdAt) : '';
+
+      // 🔄 Dynamic overall status evaluator for Leaflet popup
+      const getPopupStatus = (r) => {
+        const top = (r.status || 'PENDING').toUpperCase();
+        if (['CASE CLOSED', 'SOLVED', 'RESOLVED'].includes(top)) return top;
+
+        let p = r.policeStatus ? r.policeStatus.toUpperCase() : null;
+        let m = (r.medicalStatus || r.healthStatus) ? (r.medicalStatus || r.healthStatus).toUpperCase() : null;
+        let f = r.fireStatus ? r.fireStatus.toUpperCase() : null;
+
+        const cat = `${r.reportCategory || ''} ${r.requestedRole || ''} ${r.incidentTitle || ''} ${r.description || ''}`.toLowerCase();
+        const hasFire = cat.includes('fire');
+        const hasPolice = cat.includes('police') || cat.includes('security') || cat.includes('crime') || cat.includes('theft') || cat.includes('robbery') || cat.includes('fight') || cat.includes('accident') || cat.includes('traffic') || cat.includes('suspicious');
+        const hasMedical = cat.includes('medical') || cat.includes('health') || cat.includes('ambulance');
+
+        const active = [];
+        if (hasPolice || (!hasFire && !hasMedical)) active.push(p || 'PENDING');
+        if (hasMedical) active.push(m || 'PENDING');
+        if (hasFire) active.push(f || 'PENDING');
+
+        if (active.length > 0 && active.every(s => ['CASE CLOSED', 'SOLVED', 'RESOLVED', 'N/A'].includes(s))) {
+          return 'CASE CLOSED';
+        }
+        if (active.some(s => s === 'DISPATCHED')) {
+          return 'DISPATCHED';
+        }
+        return top;
+      };
+
+      const effectiveStatus = getPopupStatus(report);
 
       // Translucent Heat Aura Ring
       L.circle([coords.lat, coords.lng], {
@@ -218,8 +248,8 @@ export default function IncidentHeatmap({ reports = [], getDepartment, formatDat
             <span style="font-size: 9px; font-weight: 900; background: ${sevStyle.color}; color: white; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
               ${sevStyle.label} SEVERITY
             </span>
-            <span style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">
-              ${report.status || 'Active'}
+<span style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">
+              ${effectiveStatus}
             </span>
           </div>
 

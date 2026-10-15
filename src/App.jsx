@@ -305,10 +305,10 @@ const handleDeclineEula = () => {
         matchesFilter = (dept === historyFilter);
     }
 
-    let matchesStatus = true;
+let matchesStatus = true;
     if (statusFilter === 'CLOSED') {
-      const status = (report.status || '').toUpperCase();
-      matchesStatus = (status === 'SOLVED' || status === 'CASE CLOSED' || status === 'RESOLVED');
+      const { overallStatus } = getEffectiveStatuses(report);
+      matchesStatus = ['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes(overallStatus.toUpperCase());
     }
 
     return matchesSearch && matchesFilter && matchesStatus;
@@ -359,9 +359,9 @@ const handleDeclineEula = () => {
     const healthPct = totalAll === 0 ? 0 : Math.round((health / totalAll) * 100);
 
     const total = filteredForStats.length;
-    const resolved = filteredForStats.filter(r => {
-      const status = (r.status || '').toUpperCase();
-      return status === 'SOLVED' || status === 'CASE CLOSED' || status === 'RESOLVED';
+const resolved = filteredForStats.filter(r => {
+      const { overallStatus } = getEffectiveStatuses(r);
+      return ['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes(overallStatus.toUpperCase());
     }).length;
     const active = total - resolved;
 
@@ -920,8 +920,8 @@ if (!user) {
                         <p className="text-xs text-gray-700 leading-relaxed bg-slate-50 p-3 rounded-lg border">{selectedIncident.description || 'No description provided.'}</p>
                       </div>
 
-                      {/* UNIFIED CLOSURE EVIDENCE CENTRE */}
-                      {(selectedIncident.status === 'SOLVED' || selectedIncident.status === 'CASE CLOSED' || selectedIncident.status === 'RESOLVED') && (
+{/* UNIFIED CLOSURE EVIDENCE CENTRE */}
+                      {['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes(getEffectiveStatuses(selectedIncident).overallStatus) && (
                         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-4 shadow-sm">
                           <h4 className="font-black text-emerald-800 border-b border-emerald-200 pb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider">
                             🛡️ Official Responder Closure Documentation
@@ -935,7 +935,7 @@ if (!user) {
                             <div>
                               <p className="my-1"><strong>Responder Remarks:</strong></p>
                               <p className="bg-white p-2 border rounded italic text-gray-600 text-[10px] leading-relaxed">
-                                {selectedIncident.closingNotes || selectedIncident.closingRemarks || 'No general comments recorded.'}
+                                {selectedIncident.closingNotes || selectedIncident.closingRemarks || selectedIncident.policeClosingNotes || selectedIncident.fireClosingNotes || selectedIncident.medicalClosingNotes || 'No general comments recorded.'}
                               </p>
                             </div>
                           </div>
@@ -949,11 +949,11 @@ if (!user) {
                                 <div>
                                   <span className="font-extrabold text-red-700 uppercase tracking-wider flex items-center gap-0.5">🚒 Fire Dept</span>
                                   <p className="italic text-gray-600 mt-1 leading-normal">
-                                    {selectedIncident.fireClosingNotes || (getDepartment(selectedIncident) === 'FIRE' ? selectedIncident.closingNotes : null) || "No logs recorded."}
+                                    {selectedIncident.fireClosingNotes || selectedIncident.fireNotes || selectedIncident.fireClosingRemarks || (getDepartment(selectedIncident) === 'FIRE' ? (selectedIncident.closingNotes || selectedIncident.closingRemarks) : null) || (selectedIncident.fireStatus === 'CASE CLOSED' ? selectedIncident.closingNotes : null) || "No logs recorded."}
                                   </p>
                                 </div>
                                 {(() => {
-                                  const fireImg = selectedIncident.fireClosingImageBase64 || (getDepartment(selectedIncident) === 'FIRE' && selectedIncident.closingImageBase64);
+                                  const fireImg = selectedIncident.fireClosingImageBase64 || selectedIncident.fireClosingImage || selectedIncident.fireImageBase64 || selectedIncident.fireProofImage || (getDepartment(selectedIncident) === 'FIRE' ? selectedIncident.closingImageBase64 : null) || (selectedIncident.fireStatus === 'CASE CLOSED' ? selectedIncident.closingImageBase64 : null);
                                   return fireImg ? (
                                     <img 
                                       src={ensureImageSrc(fireImg)} 
@@ -969,11 +969,11 @@ if (!user) {
                                 <div>
                                   <span className="font-extrabold text-blue-700 uppercase tracking-wider flex items-center gap-0.5">🚓 Police Dept</span>
                                   <p className="italic text-gray-600 mt-1 leading-normal">
-                                    {selectedIncident.policeClosingNotes || (getDepartment(selectedIncident) === 'POLICE' ? selectedIncident.closingNotes : null) || "No logs recorded."}
+                                    {selectedIncident.policeClosingNotes || selectedIncident.policeNotes || selectedIncident.policeClosingRemarks || (getDepartment(selectedIncident) === 'POLICE' ? (selectedIncident.closingNotes || selectedIncident.closingRemarks) : null) || (selectedIncident.policeStatus === 'CASE CLOSED' ? selectedIncident.closingNotes : null) || "No logs recorded."}
                                   </p>
                                 </div>
                                 {(() => {
-                                  const policeImg = selectedIncident.policeClosingImageBase64 || (getDepartment(selectedIncident) === 'POLICE' && selectedIncident.closingImageBase64);
+                                  const policeImg = selectedIncident.policeClosingImageBase64 || selectedIncident.policeClosingImage || selectedIncident.policeImageBase64 || selectedIncident.policeProofImage || (getDepartment(selectedIncident) === 'POLICE' ? selectedIncident.closingImageBase64 : null) || (selectedIncident.policeStatus === 'CASE CLOSED' ? selectedIncident.closingImageBase64 : null);
                                   return policeImg ? (
                                     <img 
                                       src={ensureImageSrc(policeImg)} 
@@ -989,11 +989,11 @@ if (!user) {
                                 <div>
                                   <span className="font-extrabold text-green-700 uppercase tracking-wider flex items-center gap-0.5">🏥 Health/Medical</span>
                                   <p className="italic text-gray-600 mt-1 leading-normal">
-                                    {selectedIncident.medicalClosingNotes || selectedIncident.healthClosingNotes || (getDepartment(selectedIncident) === 'HEALTH' ? selectedIncident.closingNotes : null) || "No logs recorded."}
+                                    {selectedIncident.medicalClosingNotes || selectedIncident.medicalNotes || selectedIncident.healthClosingNotes || selectedIncident.healthNotes || (getDepartment(selectedIncident) === 'HEALTH' ? (selectedIncident.closingNotes || selectedIncident.closingRemarks) : null) || (selectedIncident.medicalStatus === 'CASE CLOSED' ? selectedIncident.closingNotes : null) || "No logs recorded."}
                                   </p>
                                 </div>
                                 {(() => {
-                                  const medicalImg = selectedIncident.medicalClosingImageBase64 || selectedIncident.healthClosingImageBase64 || (getDepartment(selectedIncident) === 'HEALTH' && selectedIncident.closingImageBase64);
+                                  const medicalImg = selectedIncident.medicalClosingImageBase64 || selectedIncident.medicalClosingImage || selectedIncident.healthClosingImageBase64 || selectedIncident.medicalImageBase64 || selectedIncident.medicalProofImage || (getDepartment(selectedIncident) === 'HEALTH' ? selectedIncident.closingImageBase64 : null) || (selectedIncident.medicalStatus === 'CASE CLOSED' ? selectedIncident.closingImageBase64 : null);
                                   return medicalImg ? (
                                     <img 
                                       src={ensureImageSrc(medicalImg)} 

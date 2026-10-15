@@ -8,10 +8,32 @@ function HistoryAnalytics({ reports }) {
 
   const chartData = useMemo(() => {
     // 1. Filter only CASE CLOSED or SOLVED reports across all departments
-    const closedReports = reports.filter(r => {
-      const status = (r.fireStatus || r.policeStatus || r.medicalStatus || r.status || '').toUpperCase();
-      return status === 'CASE CLOSED' || status === 'SOLVED';
-    });
+// 1. Unified status evaluator to check if all active agencies closed the case
+    const isReportClosed = (r) => {
+      if (!r) return false;
+      const topStatus = (r.status || '').toUpperCase();
+      if (['CASE CLOSED', 'SOLVED', 'RESOLVED'].includes(topStatus)) return true;
+
+      let p = r.policeStatus ? r.policeStatus.toUpperCase() : null;
+      let m = (r.medicalStatus || r.healthStatus) ? (r.medicalStatus || r.healthStatus).toUpperCase() : null;
+      let f = r.fireStatus ? r.fireStatus.toUpperCase() : null;
+
+      if (!p && !m && !f) return false;
+
+      const cat = `${r.reportCategory || ''} ${r.requestedRole || ''} ${r.incidentTitle || ''} ${r.description || ''}`.toLowerCase();
+      const hasFire = cat.includes('fire');
+      const hasPolice = cat.includes('police') || cat.includes('security') || cat.includes('crime') || cat.includes('theft') || cat.includes('robbery') || cat.includes('fight') || cat.includes('accident') || cat.includes('traffic') || cat.includes('suspicious');
+      const hasMedical = cat.includes('medical') || cat.includes('health') || cat.includes('ambulance');
+
+      const active = [];
+      if (hasPolice || (!hasFire && !hasMedical)) active.push(p || 'PENDING');
+      if (hasMedical) active.push(m || 'PENDING');
+      if (hasFire) active.push(f || 'PENDING');
+
+      return active.length > 0 && active.every(s => ['CASE CLOSED', 'SOLVED', 'RESOLVED', 'N/A'].includes(s));
+    };
+
+    const closedReports = reports.filter(isReportClosed);
 
     // 2. Group the reports based on the selected timeframe
     const groupedData = {};
