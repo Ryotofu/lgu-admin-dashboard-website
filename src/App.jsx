@@ -387,6 +387,59 @@ const handleDeclineEula = () => {
   };
  
   const stats = getStats();
+  // 🔄 Dynamic Status Synchronizer & Fallback Resolver
+  const getEffectiveStatuses = (report) => {
+    if (!report) return { overallStatus: 'PENDING', police: 'PENDING', medical: 'PENDING', fire: 'PENDING' };
+
+    const topStatus = (report.status || 'PENDING').toUpperCase();
+
+    // 1. Read explicit department fields
+    let pStatus = report.policeStatus ? report.policeStatus.toUpperCase() : null;
+    let mStatus = (report.medicalStatus || report.healthStatus) ? (report.medicalStatus || report.healthStatus).toUpperCase() : null;
+    let fStatus = report.fireStatus ? report.fireStatus.toUpperCase() : null;
+
+    // 2. Identify required/involved departments
+    const cat = `${report.reportCategory || ''} ${report.requestedRole || ''} ${report.incidentTitle || ''} ${report.description || ''}`.toLowerCase();
+    const hasFire = cat.includes('fire');
+    const hasPolice = cat.includes('police') || cat.includes('security') || cat.includes('crime') || cat.includes('theft') || cat.includes('robbery') || cat.includes('fight') || cat.includes('accident') || cat.includes('traffic') || cat.includes('suspicious');
+    const hasMedical = cat.includes('medical') || cat.includes('health') || cat.includes('ambulance');
+
+    // 3. Handle legacy documents missing sub-fields
+    if (!pStatus && !mStatus && !fStatus) {
+      pStatus = (hasPolice || (!hasFire && !hasMedical)) ? topStatus : 'N/A';
+      mStatus = hasMedical ? topStatus : 'N/A';
+      fStatus = hasFire ? topStatus : 'N/A';
+    } else {
+      // Fill remaining unset slots
+      if (!pStatus) pStatus = hasPolice ? 'PENDING' : 'N/A';
+      if (!mStatus) mStatus = hasMedical ? 'PENDING' : 'N/A';
+      if (!fStatus) fStatus = hasFire ? 'PENDING' : 'N/A';
+    }
+
+    const isFinished = (s) => ['CASE CLOSED', 'RESOLVED', 'SOLVED', 'N/A'].includes(s);
+
+    // 4. Derive unified overall status
+    const activeStatuses = [];
+    if (hasPolice || (!hasFire && !hasMedical)) activeStatuses.push(pStatus);
+    if (hasMedical) activeStatuses.push(mStatus);
+    if (hasFire) activeStatuses.push(fStatus);
+
+    let derivedOverall = topStatus;
+    if (activeStatuses.length > 0 && activeStatuses.every(isFinished)) {
+      derivedOverall = 'CASE CLOSED';
+    } else if (activeStatuses.some(s => s === 'DISPATCHED')) {
+      derivedOverall = 'DISPATCHED';
+    } else if (activeStatuses.every(s => s === 'PENDING')) {
+      derivedOverall = 'PENDING';
+    }
+
+    return {
+      overallStatus: derivedOverall,
+      police: pStatus,
+      medical: mStatus,
+      fire: fStatus
+    };
+  };
 // 1. Show loading indicator while Firebase checks active login session
 if (authLoading) {
   return (
@@ -635,56 +688,64 @@ if (!user) {
 
                       {/* Incident Attributes Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 border-b pb-4 text-xs">
-                       <p className="flex items-center gap-2">
-  <strong>🚨 Current Status:</strong> 
-  
-  {/* 🔍 Hoverable Multi-Agency Status Badge */}
-  <span className="relative group inline-block cursor-help">
-    <span className={`uppercase font-black px-2.5 py-1 rounded text-xs border tracking-wider shadow-sm transition-all ${
-      ['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes((selectedIncident.status || '').toUpperCase())
-        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-        : (selectedIncident.status || '').toUpperCase() === 'DISPATCHED'
-        ? 'bg-blue-100 text-blue-800 border-blue-300'
-        : 'bg-amber-100 text-amber-800 border-amber-300'
-    }`}>
-      {selectedIncident.status || 'PENDING'} ℹ️
-    </span>
+                     {(() => {
+  const { overallStatus, police, medical, fire } = getEffectiveStatuses(selectedIncident);
+  return (
+    <p className="flex items-center gap-2">
+      <strong>🚨 Current Status:</strong> 
+      
+      {/* 🔍 Hoverable Multi-Agency Status Badge */}
+      <span className="relative group inline-block cursor-help">
+        <span className={`uppercase font-black px-2.5 py-1 rounded text-xs border tracking-wider shadow-sm transition-all ${
+          ['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes(overallStatus)
+            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+            : overallStatus === 'DISPATCHED'
+            ? 'bg-blue-100 text-blue-800 border-blue-300'
+            : 'bg-amber-100 text-amber-800 border-amber-300'
+        }`}>
+          {overallStatus} ℹ️
+        </span>
 
-    {/* 🛈 Hover Tooltip: Agency Status Breakdown */}
-    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:flex flex-col gap-1.5 bg-slate-900 text-white text-[11px] p-3 rounded-xl shadow-2xl z-50 whitespace-nowrap border border-slate-700 pointer-events-none">
-      <span className="font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-1">
-        Department Dispatch Breakdown
-      </span>
-      <span className="flex items-center justify-between gap-4 font-semibold">
-        <span>🚓 Police Dept:</span>
-        <span className={`font-black uppercase ${
-          (selectedIncident.policeStatus || '').toUpperCase() === 'DISPATCHED' ? 'text-blue-400' :
-          ['CASE CLOSED', 'RESOLVED'].includes((selectedIncident.policeStatus || '').toUpperCase()) ? 'text-emerald-400' : 'text-amber-400'
-        }`}>
-          {selectedIncident.policeStatus || 'PENDING'}
+        {/* 🛈 Hover Tooltip: Department Dispatch Breakdown */}
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:flex flex-col gap-1.5 bg-slate-900 text-white text-[11px] p-3 rounded-xl shadow-2xl z-50 whitespace-nowrap border border-slate-700 pointer-events-none">
+          <span className="font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-1">
+            Department Dispatch Breakdown
+          </span>
+          <span className="flex items-center justify-between gap-4 font-semibold">
+            <span>🚓 Police Dept:</span>
+            <span className={`font-black uppercase ${
+              police === 'DISPATCHED' ? 'text-blue-400' :
+              ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes(police) ? 'text-emerald-400' :
+              police === 'N/A' ? 'text-slate-400' : 'text-amber-400'
+            }`}>
+              {police}
+            </span>
+          </span>
+          <span className="flex items-center justify-between gap-4 font-semibold">
+            <span>🚑 Medical Dept:</span>
+            <span className={`font-black uppercase ${
+              medical === 'DISPATCHED' ? 'text-blue-400' :
+              ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes(medical) ? 'text-emerald-400' :
+              medical === 'N/A' ? 'text-slate-400' : 'text-amber-400'
+            }`}>
+              {medical}
+            </span>
+          </span>
+          <span className="flex items-center justify-between gap-4 font-semibold">
+            <span>🚒 Fire Dept:</span>
+            <span className={`font-black uppercase ${
+              fire === 'DISPATCHED' ? 'text-blue-400' :
+              ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes(fire) ? 'text-emerald-400' :
+              fire === 'N/A' ? 'text-slate-400' : 'text-amber-400'
+            }`}>
+              {fire}
+            </span>
+          </span>
         </span>
       </span>
-      <span className="flex items-center justify-between gap-4 font-semibold">
-        <span>🚑 Medical Dept:</span>
-        <span className={`font-black uppercase ${
-          (selectedIncident.medicalStatus || selectedIncident.healthStatus || '').toUpperCase() === 'DISPATCHED' ? 'text-blue-400' :
-          ['CASE CLOSED', 'RESOLVED'].includes((selectedIncident.medicalStatus || selectedIncident.healthStatus || '').toUpperCase()) ? 'text-emerald-400' : 'text-amber-400'
-        }`}>
-          {selectedIncident.medicalStatus || selectedIncident.healthStatus || 'PENDING'}
-        </span>
-      </span>
-      <span className="flex items-center justify-between gap-4 font-semibold">
-        <span>🚒 Fire Dept:</span>
-        <span className={`font-black uppercase ${
-          (selectedIncident.fireStatus || '').toUpperCase() === 'DISPATCHED' ? 'text-blue-400' :
-          ['CASE CLOSED', 'RESOLVED'].includes((selectedIncident.fireStatus || '').toUpperCase()) ? 'text-emerald-400' : 'text-amber-400'
-        }`}>
-          {selectedIncident.fireStatus || 'PENDING'}
-        </span>
-      </span>
-    </span>
-  </span>
-</p>
+    </p>
+  );
+})()}
                         <p><strong>🕒 Time Logged:</strong> <span className="text-gray-600">{formatDateTime(selectedIncident.createdAt)}</span></p>
                         
                         <p className="sm:col-span-2">
@@ -1442,60 +1503,61 @@ if (!user) {
                     </span>
                   </td>
 <td className="p-3">
-  {/* 🔍 Hoverable Multi-Agency Status Badge for Historical Table */}
-  <div className="relative group inline-block cursor-help">
-    <span
-      className={`font-black uppercase text-[10px] px-2 py-1 rounded border tracking-wider shadow-sm transition-all ${
-        ['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes((r.status || '').toUpperCase())
-          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-          : (r.status || '').toUpperCase() === 'DISPATCHED'
-          ? 'bg-blue-100 text-blue-800 border-blue-300'
-          : 'bg-amber-100 text-amber-800 border-amber-300'
-      }`}
-    >
-      {r.status || 'PENDING'} ℹ️
-    </span>
-
-    {/* 🛈 Hover Tooltip Popup displaying per-department dispatch states */}
-    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover:flex flex-col gap-1.5 bg-slate-900 text-white text-[10px] p-3 rounded-xl shadow-2xl z-50 whitespace-nowrap border border-slate-700 pointer-events-none">
-      <div className="font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-1">
-        Department Status Breakdown
-      </div>
-      
-      {/* Police Department Status */}
-      <div className="flex items-center justify-between gap-4 font-semibold">
-        <span>🚓 Police:</span>
-        <span className={`font-black uppercase ${
-          (r.policeStatus || '').toUpperCase() === 'DISPATCHED' ? 'text-blue-400' :
-          ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes((r.policeStatus || '').toUpperCase()) ? 'text-emerald-400' : 'text-amber-400'
-        }`}>
-          {r.policeStatus || 'PENDING'}
+  {(() => {
+    const { overallStatus, police, medical, fire } = getEffectiveStatuses(r);
+    return (
+      <div className="relative group inline-block cursor-help">
+        <span
+          className={`font-black uppercase text-[10px] px-2 py-1 rounded border tracking-wider shadow-sm transition-all ${
+            ['SOLVED', 'CASE CLOSED', 'RESOLVED'].includes(overallStatus)
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+              : overallStatus === 'DISPATCHED'
+              ? 'bg-blue-100 text-blue-800 border-blue-300'
+              : 'bg-amber-100 text-amber-800 border-amber-300'
+          }`}
+        >
+          {overallStatus} ℹ️
         </span>
-      </div>
 
-      {/* Medical Department Status */}
-      <div className="flex items-center justify-between gap-4 font-semibold">
-        <span>🚑 Medical:</span>
-        <span className={`font-black uppercase ${
-          (r.medicalStatus || r.healthStatus || '').toUpperCase() === 'DISPATCHED' ? 'text-blue-400' :
-          ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes((r.medicalStatus || r.healthStatus || '').toUpperCase()) ? 'text-emerald-400' : 'text-amber-400'
-        }`}>
-          {r.medicalStatus || r.healthStatus || 'PENDING'}
-        </span>
+        {/* 🛈 Hover Tooltip Popup */}
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover:flex flex-col gap-1.5 bg-slate-900 text-white text-[10px] p-3 rounded-xl shadow-2xl z-50 whitespace-nowrap border border-slate-700 pointer-events-none">
+          <div className="font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-1">
+            Department Status Breakdown
+          </div>
+          <div className="flex items-center justify-between gap-4 font-semibold">
+            <span>🚓 Police:</span>
+            <span className={`font-black uppercase ${
+              police === 'DISPATCHED' ? 'text-blue-400' :
+              ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes(police) ? 'text-emerald-400' :
+              police === 'N/A' ? 'text-slate-400' : 'text-amber-400'
+            }`}>
+              {police}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4 font-semibold">
+            <span>🚑 Medical:</span>
+            <span className={`font-black uppercase ${
+              medical === 'DISPATCHED' ? 'text-blue-400' :
+              ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes(medical) ? 'text-emerald-400' :
+              medical === 'N/A' ? 'text-slate-400' : 'text-amber-400'
+            }`}>
+              {medical}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4 font-semibold">
+            <span>🚒 Fire:</span>
+            <span className={`font-black uppercase ${
+              fire === 'DISPATCHED' ? 'text-blue-400' :
+              ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes(fire) ? 'text-emerald-400' :
+              fire === 'N/A' ? 'text-slate-400' : 'text-amber-400'
+            }`}>
+              {fire}
+            </span>
+          </div>
+        </div>
       </div>
-
-      {/* Fire Department Status */}
-      <div className="flex items-center justify-between gap-4 font-semibold">
-        <span>🚒 Fire:</span>
-        <span className={`font-black uppercase ${
-          (r.fireStatus || '').toUpperCase() === 'DISPATCHED' ? 'text-blue-400' :
-          ['CASE CLOSED', 'RESOLVED', 'SOLVED'].includes((r.fireStatus || '').toUpperCase()) ? 'text-emerald-400' : 'text-amber-400'
-        }`}>
-          {r.fireStatus || 'PENDING'}
-        </span>
-      </div>
-    </div>
-  </div>
+    );
+  })()}
 </td>
                   <td className="p-3 text-slate-500 truncate max-w-[150px]">
                     {r.resolvedBy || r.resolvedByEmail || r.reporterName || 'N/A'}
